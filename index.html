@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111827">
+  <title>Clipper Studio — Video Clipper</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0b1020; --panel:#141c2e; --line:#29354b; --text:#f4f7fb; --muted:#aab6ca; --accent:#7cf0c2; --accent2:#54c7f4; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:radial-gradient(ellipse at top,#172541 0,#0b1020 55%); color:var(--text); min-height:100vh; }
+    main { width:min(900px,100%); margin:auto; padding:24px 16px 48px; }
+    header { display:flex; align-items:center; gap:12px; margin:6px 0 24px; }
+    .logo { width:46px;height:46px;display:grid;place-items:center;border-radius:14px;background:var(--accent);color:#08131a;font-size:24px;font-weight:900; }
+    h1 { font-size:clamp(23px,5vw,34px); margin:0; letter-spacing:-.7px; }
+    .sub { margin:5px 0 0;color:var(--muted);font-size:14px; }
+    .panel { background:rgba(20,28,46,.94); border:1px solid var(--line); border-radius:18px; padding:18px; margin:14px 0; box-shadow:0 12px 36px #0002; }
+    h2 { font-size:17px; margin:0 0 14px; }
+    .upload { border:1.5px dashed #52627c; border-radius:14px; padding:20px 14px; text-align:center; background:#0c1425; }
+    input[type=file] { display:block; max-width:100%; margin:12px auto 0; color:var(--muted); }
+    video { width:100%; max-height:420px; background:#05070b; border-radius:12px; margin-top:14px; }
+    .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+    label { display:block; color:var(--muted); font-size:13px; margin-bottom:7px; }
+    input[type=number], select { width:100%; border:1px solid #35435d; border-radius:10px; padding:12px; color:var(--text); background:#0c1425; font:inherit; }
+    .check { display:flex; align-items:flex-start; gap:10px; color:var(--muted); font-size:13px; line-height:1.4; margin:14px 0; }
+    .check input { margin-top:3px; }
+    button, .download { display:inline-flex; justify-content:center; align-items:center; gap:8px; width:100%; border:0; border-radius:12px; padding:14px 16px; font:700 15px system-ui; text-decoration:none; cursor:pointer; }
+    button.primary { background:var(--accent); color:#06150f; }
+    button.secondary { background:#26334a; color:var(--text); margin-top:10px; }
+    button:disabled { opacity:.45; cursor:not-allowed; }
+    .status { color:var(--muted); font-size:13px; line-height:1.5; margin-top:12px; overflow-wrap:anywhere; }
+    .progress { height:8px; background:#26334a; border-radius:99px; overflow:hidden; margin-top:10px; }
+    .bar { width:0%; height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); transition:width .2s; }
+    .results { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-top:14px; }
+    .clip { border:1px solid var(--line); border-radius:12px; padding:10px; background:#0c1425; min-width:0; }
+    .clip video { margin:0 0 10px; max-height:240px; }
+    .download { background:#26334a; color:var(--text); padding:11px; font-size:13px; }
+    .hint { font-size:12px; line-height:1.5; color:var(--muted); }
+    .pill { display:inline-block; border:1px solid var(--line); border-radius:99px; padding:4px 8px; font-size:11px; color:var(--muted); }
+    footer { text-align:center; color:var(--muted); font-size:12px; padding:12px; }
+    @media(max-width:520px) { main{padding:18px 12px 36px}.panel{padding:14px}.grid{gap:9px} }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="logo">✂</div>
+    <div>
+      <h1>Clipper Studio</h1>
+      <p class="sub">Potong video panjang menjadi klip pendek.</p>
+    </div>
+  </header>
+
+  <section class="panel">
+    <h2>1. Pilih video</h2>
+    <div class="upload">
+      <div style="font-size:28px">🎬</div>
+      <strong>Upload video dari perangkat</strong>
+      <p class="sub">Coba dulu video pendek untuk mengetes kemampuan HP.</p>
+      <input id="fileInput" type="file" accept="video/*">
+    </div>
+    <video id="preview" controls playsinline hidden></video>
+    <p id="videoInfo" class="status">Belum ada video yang dipilih.</p>
+  </section>
+
+  <section class="panel">
+    <h2>2. Atur klip</h2>
+    <div class="grid">
+      <div>
+        <label for="clipSeconds">Durasi tiap klip (detik)</label>
+        <input id="clipSeconds" type="number" min="5" max="180" value="30">
+      </div>
+      <div>
+        <label for="startSeconds">Mulai dari detik ke-</label>
+        <input id="startSeconds" type="number" min="0" step="1" value="0">
+      </div>
+      <div>
+        <label for="maxClips">Jumlah klip maksimum</label>
+        <input id="maxClips" type="number" min="1" max="20" value="5">
+      </div>
+      <div>
+        <label for="format">Format video</label>
+        <select id="format">
+          <option value="vertical">Vertikal 9:16 (Shorts/Reels)</option>
+          <option value="original">Pertahankan rasio asli</option>
+        </select>
+      </div>
+    </div>
+    <label class="check"><input id="cropCenter" type="checkbox" checked> <span>Untuk format vertikal, potong bagian tengah gambar agar memenuhi layar 9:16. Ini bisa memangkas sisi kiri/kanan video.</span></label>
+    <button id="makeBtn" class="primary" disabled>✂ Buat klip</button>
+    <button id="loadBtn" class="secondary">Muat mesin pemotong video (unduhan awal ± puluhan MB)</button>
+    <div class="progress"><div id="progressBar" class="bar"></div></div>
+    <p id="status" class="status" role="status">Pilih video, lalu muat mesin pemotong.</p>
+    <p class="hint">Pemrosesan dilakukan di browser. File video tidak dikirim ke server situs, tetapi pemuatan mesin membutuhkan internet. Video besar bisa membuat HP panas, lambat, atau kehabisan memori.</p>
+  </section>
+
+  <section class="panel">
+    <h2>3. Hasil klip</h2>
+    <div id="results" class="results"><p class="status">Hasil klip akan muncul di sini.</p></div>
+  </section>
+  <footer>Clipper Studio • Demo gratis • Gunakan video yang kamu miliki atau berhak edit.</footer>
+</main>
+
+<script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const fileInput = $('fileInput');
+  const preview = $('preview');
+  const videoInfo = $('videoInfo');
+  const status = $('status');
+  const bar = $('progressBar');
+  const makeBtn = $('makeBtn');
+  const loadBtn = $('loadBtn');
+  const results = $('results');
+  let sourceFile = null;
+  let videoDuration = 0;
+  let ffmpeg = null;
+  let loaded = false;
+  let busy = false;
+  let previewUrl = null;
+  const outputUrls = [];
+
+  function say(message) { status.textContent = message; }
+  function progress(value) { bar.style.width = Math.max(0, Math.min(100, value)) + '%'; }
+  function timeLabel(seconds) {
+    const s = Math.max(0, Math.floor(seconds));
+    return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+  }
+  function safeBase(name) {
+    return name.replace(/\.[^.]+$/, '').replace(/[^a-z0-9_-]/gi, '_').slice(0, 50) || 'klip';
+  }
+  function setBusy(value) {
+    busy = value;
+    makeBtn.disabled = value || !sourceFile || !loaded;
+    loadBtn.disabled = value || loaded;
+    fileInput.disabled = value;
+  }
+
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('video/')) {
+      say('Pilih file video yang didukung browser.');
+      return;
+    }
+    sourceFile = file;
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    previewUrl = URL.createObjectURL(file);
+    preview.src = previewUrl;
+    preview.hidden = false;
+    preview.onloadedmetadata = () => {
+      videoDuration = preview.duration;
+      videoInfo.textContent = `${file.name} • ${(file.size / (1024 * 1024)).toFixed(1)} MB • Durasi ${timeLabel(videoDuration)}`;
+      $('startSeconds').max = Math.max(0, Math.floor(videoDuration - 1));
+      makeBtn.disabled = !loaded;
+      say(loaded ? 'Video siap dipotong.' : 'Video siap. Muat mesin pemotong terlebih dahulu.');
+    };
+    results.replaceChildren();
+    outputUrls.forEach(URL.revokeObjectURL);
+    outputUrls.length = 0;
+  });
+
+  loadBtn.addEventListener('click', async () => {
+    if (loaded || busy) return;
+    if (!window.FFmpeg || !window.FFmpeg.createFFmpeg) {
+      say('Pustaka FFmpeg tidak berhasil dimuat. Periksa internet, lalu muat ulang halaman.');
+      return;
+    }
+    setBusy(true);
+    say('Memuat mesin pemotong video. Pertama kali mungkin perlu waktu.');
+    try {
+      const { createFFmpeg } = FFmpeg;
+      ffmpeg = createFFmpeg({
+        log: false,
+        corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js',
+        progress: ({ ratio }) => progress(Math.round((ratio || 0) * 100))
+      });
+      ffmpeg.setLogger(({ message }) => {
+        if (message && /error/i.test(message)) console.warn(message);
+      });
+      await ffmpeg.load();
+      loaded = true;
+      say('Mesin siap. Pilih video dan tekan “Buat klip”.');
+    } catch (error) {
+      console.error(error);
+      say('Gagal memuat mesin. Coba refresh halaman dan gunakan koneksi internet stabil.');
+    } finally {
+      setBusy(false);
+      makeBtn.disabled = !sourceFile || !loaded;
+      loadBtn.disabled = loaded;
+    }
+  });
+
+  makeBtn.addEventListener('click', async () => {
+    if (!sourceFile || !loaded || busy) return;
+    const clipLength = Number($('clipSeconds').value);
+    const startAt = Number($('startSeconds').value);
+    const maxClips = Number($('maxClips').value);
+    const vertical = $('format').value === 'vertical';
+    if (!Number.isFinite(clipLength) || clipLength < 5 || clipLength > 180) {
+      say('Durasi klip harus antara 5 sampai 180 detik.'); return;
+    }
+    if (!Number.isFinite(startAt) || startAt < 0 || startAt >= videoDuration) {
+      say('Waktu mulai harus berada di dalam durasi video.'); return;
+    }
+    if (!Number.isInteger(maxClips) || maxClips < 1 || maxClips > 20) {
+      say('Jumlah klip harus antara 1 sampai 20.'); return;
+    }
+
+    setBusy(true);
+    results.replaceChildren();
+    outputUrls.forEach(URL.revokeObjectURL);
+    outputUrls.length = 0;
+    progress(0);
+    const ext = sourceFile.name.toLowerCase().endsWith('.webm') ? 'webm' : 'mp4';
+    const inputName = `input.${ext}`;
+    const base = safeBase(sourceFile.name);
+    try {
+      say('Menyiapkan video di memori browser…');
+      ffmpeg.FS('writeFile', inputName, await FFmpeg.fetchFile(sourceFile));
+      const possible = Math.ceil((videoDuration - startAt) / clipLength);
+      const count = Math.min(maxClips, possible);
+      if (count < 1) throw new Error('Tidak ada klip yang bisa dibuat dari waktu mulai tersebut.');
+      for (let i = 0; i < count; i++) {
+        const clipStart = startAt + i * clipLength;
+        const duration = Math.min(clipLength, videoDuration - clipStart);
+        if (duration <= 0) break;
+        const outName = `clip_${String(i + 1).padStart(2, '0')}.mp4`;
+        say(`Memproses klip ${i + 1} dari ${count} (${timeLabel(clipStart)}–${timeLabel(clipStart + duration)})…`);
+        const args = ['-ss', String(clipStart), '-i', inputName, '-t', String(duration)];
+        if (vertical) {
+          args.push('-vf', 'scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280');
+        }
+        args.push('-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28', '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', '-y', outName);
+        await ffmpeg.run(...args);
+        const data = ffmpeg.FS('readFile', outName);
+        const blob = new Blob([data.buffer], { type: 'video/mp4' });
+        const url = URL.createObjectURL(blob);
+        outputUrls.push(url);
+        const card = document.createElement('div');
+        card.className = 'clip';
+        const vid = document.createElement('video');
+        vid.controls = true; vid.playsInline = true; vid.src = url;
+        const caption = document.createElement('p');
+        caption.className = 'hint';
+        caption.textContent = `Klip ${i + 1} • ${timeLabel(clipStart)}–${timeLabel(clipStart + duration)}`;
+        const link = document.createElement('a');
+        link.className = 'download';
+        link.href = url;
+        link.download = `${base}_clip_${String(i + 1).padStart(2, '0')}.mp4`;
+        link.textContent = '⬇ Unduh MP4';
+        card.append(vid, caption, link);
+        results.append(card);
+        progress(Math.round(((i + 1) / count) * 100));
+        try { ffmpeg.FS('unlink', outName); } catch (_) {}
+      }
+      say(`Selesai. ${results.children.length} klip berhasil dibuat. Unduh satu per satu di atas.`);
+      try { ffmpeg.FS('unlink', inputName); } catch (_) {}
+    } catch (error) {
+      console.error(error);
+      say('Pemrosesan gagal atau memori HP tidak cukup. Coba video yang lebih pendek/kecil, kurangi jumlah klip, lalu muat ulang halaman.');
+    } finally {
+      setBusy(false);
+      makeBtn.disabled = !sourceFile || !loaded;
+    }
+  });
+})();
+</script>
+</body>
+</html>
